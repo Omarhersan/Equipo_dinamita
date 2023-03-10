@@ -1,7 +1,7 @@
 import json
 import requests
-from typing import Dict
-
+from typing import Dict, List
+from difflib import SequenceMatcher
 from .helpers import SICHelper
 from .settings import (
     DEFAULT_SIC_INDUSTRIES_URL,
@@ -31,18 +31,60 @@ class CLI:
             file.write(content)
 
     def load(self, filename: str) -> str:
-        SICHelper.from_file(filename)
-        return "File can be correctly loaded into memory and parsed by our data models."
+        file = SICHelper.from_file(filename)
+        return file
 
-    def search(self, filename: str, string_to_search: str, similarity: bool = False) -> str:
-        loaded_file = SICHelper.from_file(filename=filename)
+    def search(self, filename: str, pattern: str, exact: bool = False) -> List:
+        loaded_file = self.load(filename=filename)
         print(f'The file: {loaded_file.title} has been successfully loaded')
-        results = []
-        for sub_industry in loaded_file.sub_industries:
-            #if string_to_search in sub_industry:
-            #    results.append(sub_industry)
-            print(sub_industry.sub_industries)
+        if exact:
+            '''
+            Implementación de lo más horrible que he hecho en mi vida, pero jala
+            '''
+            results = []
+            for sub_industry in loaded_file.sub_industries:
+                if self.search_e(str(sub_industry), pattern):
+                    results.append(sub_industry)
+                for major_group in sub_industry.sub_industries:
+                    if self.search_e(str(major_group), pattern):
+                        results.append(major_group)
+                    for industry_group in major_group.sub_industries:
+                        if self.search_e(str(industry_group), pattern):
+                            results.append(industry_group)
+                        for industry in industry_group.sub_industries:
+                            if self.search_e(str(industry), pattern):
+                                results.append(industry)
+            return results
+        else:
+            results = []
+            for sub_industry in loaded_file.sub_industries:
+                if self.search_s(str(sub_industry), pattern):
+                    print('its working')
+                    results.append(sub_industry)
+                for major_group in sub_industry.sub_industries:
+                    if self.search_s(str(major_group), pattern):
+                        results.append(major_group)
+                    for industry_group in major_group.sub_industries:
+                        if self.search_s(str(industry_group), pattern):
+                            results.append(industry_group)
+                        for industry in industry_group.sub_industries:
+                            if self.search_s(str(industry), pattern):
+                                results.append(industry)
+
+            return results
 
 
 
-        pass
+    # aquí estan
+
+    def search_e(self, title: str, pattern: str):
+        return pattern in title
+    def search_s(self,title: str,pattern: str) -> bool:
+        similarity_ratio = SequenceMatcher(None, title , pattern).ratio()
+        coincidence = False
+        if similarity_ratio >0.4:
+            coincidence = True
+        return coincidence
+
+
+# Codigo para python whl python setup.py bdist_wheel
